@@ -83,7 +83,7 @@ impl<T: RelayNode> RelayNodeID<T> {
 
 impl<T: RelayNode> From<&RelayNodeID<T>> for String {
     fn from(id: &RelayNodeID<T>) -> Self {
-        format!("{}{}", id.0.to_simple().to_string(), T::ID_SUFFIX)
+        format!("{}{}", id.0.as_simple().to_string(), T::ID_SUFFIX)
     }
 }
 
@@ -147,12 +147,11 @@ impl<T: RelayNode> From<RelayNodeID<T>> for sea_orm::Value {
 
 #[cfg(feature = "sea-orm")]
 impl<T: RelayNode> sea_orm::TryGetable for RelayNodeID<T> {
-    fn try_get(
+    fn try_get_by<I: sea_orm::ColIdx>(
         res: &sea_orm::QueryResult,
-        pre: &str,
-        col: &str,
+        index: I
     ) -> Result<Self, sea_orm::TryGetError> {
-        let val: Uuid = res.try_get(pre, col).map_err(sea_orm::TryGetError::DbErr)?;
+        let val: Uuid = res.try_get_by(index).map_err(sea_orm::TryGetError::DbErr)?;
         Ok(RelayNodeID::<T>::new(val))
     }
 }
@@ -180,15 +179,19 @@ impl<T: RelayNode> sea_orm::sea_query::ValueType for RelayNodeID<T> {
     fn column_type() -> sea_orm::sea_query::ColumnType {
         sea_orm::sea_query::ColumnType::Uuid
     }
+
+    fn array_type() -> sea_orm::sea_query::ArrayType {
+        sea_orm::sea_query::ArrayType::Uuid
+    }
 }
 
 #[cfg(feature = "sea-orm")]
 impl<T: RelayNode> sea_orm::TryFromU64 for RelayNodeID<T> {
     fn try_from_u64(_: u64) -> Result<Self, sea_orm::DbErr> {
-        Err(sea_orm::DbErr::Exec(format!(
+        Err(sea_orm::DbErr::Exec(sea_orm::RuntimeErr::Internal(format!(
             "{} cannot be converted from u64",
             std::any::type_name::<T>()
-        )))
+        ))))
     }
 }
 

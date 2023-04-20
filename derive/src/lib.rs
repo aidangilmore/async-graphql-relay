@@ -25,7 +25,7 @@ struct RelayNodeObjectAttributes {
 /// ```
 #[proc_macro_derive(RelayNodeObject, attributes(relay))]
 pub fn derive_relay_node_object(input: TokenStream) -> TokenStream {
-    let input = parse_macro_input!(input);
+    let input = parse_macro_input!(input as syn::DeriveInput);
     let attrs = RelayNodeObjectAttributes::from_derive_input(&input)
         .expect("Error parsing 'RelayNodeObject' macro options!");
     let DeriveInput { ident, data, .. } = input;
