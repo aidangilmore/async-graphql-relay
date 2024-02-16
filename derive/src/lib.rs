@@ -114,7 +114,6 @@ pub fn derive_relay_interface(input: TokenStream) -> TokenStream {
             }
         }
 
-        #[async_graphql_relay::_async_trait]
         impl async_graphql_relay::RelayNodeInterface for Node {
             async fn fetch_node(ctx: async_graphql_relay::RelayContext, relay_id: String) -> Result<Self, async_graphql::Error> {
                 if relay_id.len() < 32 {

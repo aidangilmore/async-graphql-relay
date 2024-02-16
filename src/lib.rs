@@ -9,22 +9,17 @@ use std::{any::Any, fmt, marker::PhantomData, str::FromStr};
 use async_graphql::{Error, InputValueError, InputValueResult, Scalar, ScalarType, Value};
 
 pub use async_graphql_relay_derive::*;
-use async_trait::async_trait;
 use uuid::Uuid;
-
-#[doc(hidden)]
-pub use async_trait::async_trait as _async_trait;
 
 /// RelayNodeInterface is a trait implemented by the GraphQL interface enum to implement the fetch_node method.
 /// You should refer to the 'RelayInterface' macro which is the recommended way to implement this trait.
-#[async_trait]
 pub trait RelayNodeInterface
 where
     Self: Sized,
 {
     /// fetch_node takes in a RelayContext and a generic relay ID and will return a Node interface with the requested object.
     /// This function is used to implement the 'node' query required by the Relay server specification for easily refetching an entity in the GraphQL schema.
-    async fn fetch_node(ctx: RelayContext, relay_id: String) -> Result<Self, Error>;
+    fn fetch_node(ctx: RelayContext, relay_id: String) -> impl std::future::Future<Output = Result<Self, Error>> + Send;
 }
 
 /// RelayNodeStruct is a trait implemented by the GraphQL Object to ensure each Object has a globally unique ID.
@@ -38,14 +33,13 @@ pub trait RelayNodeStruct {
 
 /// RelayNode is a trait implemented on the GraphQL Object to define how it should be fetched.
 /// This is used by the 'node' query so that the object can be refetched.
-#[async_trait]
 pub trait RelayNode: RelayNodeStruct {
     /// TNode is the type of the Node interface. This should point the enum with the 'RelayInterface' macro.
     type TNode: RelayNodeInterface;
 
     /// get is a method defines by the user to refetch an object of a particular type.
     /// The context can be used to share a database connection or other required context to facilitate the refetch.
-    async fn get(ctx: RelayContext, id: RelayNodeID<Self>) -> Result<Option<Self::TNode>, Error>;
+    fn get(ctx: RelayContext, id: RelayNodeID<Self>) -> impl std::future::Future<Output = Result<Option<Self::TNode>, Error>> + Send;
 }
 
 /// RelayNodeID is a wrapper around a UUID with the use of the 'RelayNodeStruct' trait to ensure each object has a globally unique ID.
@@ -135,63 +129,6 @@ impl RelayContext {
             Some(v) => Some(v),
             _ => None,
         }
-    }
-}
-
-#[cfg(feature = "sea-orm")]
-impl<T: RelayNode> From<RelayNodeID<T>> for sea_orm::Value {
-    fn from(source: RelayNodeID<T>) -> Self {
-        sea_orm::Value::Uuid(Some(Box::new(source.to_uuid())))
-    }
-}
-
-#[cfg(feature = "sea-orm")]
-impl<T: RelayNode> sea_orm::TryGetable for RelayNodeID<T> {
-    fn try_get_by<I: sea_orm::ColIdx>(
-        res: &sea_orm::QueryResult,
-        index: I
-    ) -> Result<Self, sea_orm::TryGetError> {
-        let val: Uuid = res.try_get_by(index).map_err(sea_orm::TryGetError::DbErr)?;
-        Ok(RelayNodeID::<T>::new(val))
-    }
-}
-
-#[cfg(feature = "sea-orm")]
-impl<T: RelayNode> sea_orm::sea_query::Nullable for RelayNodeID<T> {
-    fn null() -> sea_orm::Value {
-        sea_orm::Value::Uuid(None)
-    }
-}
-
-#[cfg(feature = "sea-orm")]
-impl<T: RelayNode> sea_orm::sea_query::ValueType for RelayNodeID<T> {
-    fn try_from(v: sea_orm::Value) -> Result<Self, sea_orm::sea_query::ValueTypeErr> {
-        match v {
-            sea_orm::Value::Uuid(Some(x)) => Ok(RelayNodeID::<T>::new(*x)),
-            _ => Err(sea_orm::sea_query::ValueTypeErr),
-        }
-    }
-
-    fn type_name() -> String {
-        stringify!(Uuid).to_owned()
-    }
-
-    fn column_type() -> sea_orm::sea_query::ColumnType {
-        sea_orm::sea_query::ColumnType::Uuid
-    }
-
-    fn array_type() -> sea_orm::sea_query::ArrayType {
-        sea_orm::sea_query::ArrayType::Uuid
-    }
-}
-
-#[cfg(feature = "sea-orm")]
-impl<T: RelayNode> sea_orm::TryFromU64 for RelayNodeID<T> {
-    fn try_from_u64(_: u64) -> Result<Self, sea_orm::DbErr> {
-        Err(sea_orm::DbErr::Exec(sea_orm::RuntimeErr::Internal(format!(
-            "{} cannot be converted from u64",
-            std::any::type_name::<T>()
-        ))))
     }
 }
 

@@ -14,7 +14,7 @@ mod user;
 pub struct QueryRoot;
 
 #[derive(Interface, RelayInterface)]
-#[graphql(field(name = "id", type = "NodeGlobalID"))] // The 'NodeGlobalID' type comes from the 'RelayInterface' macro.
+#[graphql(field(name = "id", ty = "NodeGlobalID"))] // The 'NodeGlobalID' type comes from the 'RelayInterface' macro.
 pub enum Node {
     User(User),
     Tenant(Tenant),
